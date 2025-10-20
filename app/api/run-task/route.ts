@@ -13,6 +13,12 @@ interface SafeCallResult {
     prompt_tokens: number;
     completion_tokens: number;
   };
+  durationUsage?: {
+    total_duration: number; // 整个请求处理的总耗时（单位通常是纳秒）。包含了模型加载、提示词处理和内容生成的所有时间
+    load_duration: number;  // 如果模型不在内存中，加载模型到内存所花费的时间。如果模型已经加载，这个值可能为0。
+    prompt_eval_duration: number; // 处理（评估）输入提示词（prompt）所花费的时间。
+    eval_duration: number;  // 生成回复内容所花费的时间。
+  };
   error?: string;
 }
 
@@ -36,7 +42,8 @@ async function safeModelCall(
         return {
           success: true,
           content: result.content,
-          tokenUsage: result.usage
+          tokenUsage: result.usage,
+          durationUsage: result.duration
         };
       } else {
         // 记录非致命错误，但继续循环以重试
@@ -199,6 +206,10 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
       // 步骤 3: 工作模型回答问题
       let score = 0;
       let modelAnswer = "N/A (调用失败)";
+      let workTokenUsage = 0; // 工作模型token消耗
+      let workDurationUsage = 0; // 工作模型耗时
+      let scoreTokenUsage = 0; // 评分模型token消耗
+      let scoreDurationUsage = 0; // 评分模型耗时
       currentTask++;
       onProgress({ type: 'update', payload: { activeTaskMessage: `正在回答问题 ${testCase.id}...`, progress: (currentTask / totalTasks) * 100, currentTask: currentTask } })
 
@@ -238,6 +249,10 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
       if (workResult.tokenUsage) {
         totalTokenUsage += workResult.tokenUsage.total_tokens;
         onProgress({ type: 'token_usage', tokenUsage: totalTokenUsage });
+        workTokenUsage = workResult.tokenUsage.total_tokens; // 本次问答工作模型消耗token
+      }
+      if (workResult.durationUsage) { // 本次问答工作模型耗时
+        workDurationUsage = Math.round(workResult.durationUsage.total_duration / 1e6);
       }
 
       if (workResult.success) {
@@ -322,6 +337,10 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
         if (scoreResult.tokenUsage) {
           totalTokenUsage += scoreResult.tokenUsage.total_tokens;
           onProgress({ type: 'token_usage', tokenUsage: totalTokenUsage });
+          scoreTokenUsage = scoreResult.tokenUsage.total_tokens; // 本次评分消耗token
+        }
+        if (scoreResult.durationUsage) { // 本次评分耗时
+          scoreDurationUsage = Math.round(scoreResult.durationUsage.total_duration / 1e6);
         }
 
         if (scoreResult.success) {
@@ -332,7 +351,19 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
       }
       onProgress({ type: 'state_update', payload: { score: score, maxScore: testCase.score } });
 
-      const resultEntry = { id: testCase.id, question: testCase.question, standardAnswer: testCase.answer, modelAnswer, maxScore: testCase.score, score: score, error: workResult.error };
+      const resultEntry = {
+        id: testCase.id,
+        question: testCase.question,
+        standardAnswer: testCase.answer,
+        modelAnswer,
+        maxScore: testCase.score,
+        score: score,
+        workTokenUsage: workTokenUsage,
+        workDurationUsage: workDurationUsage,
+        scoreTokenUsage: scoreTokenUsage,
+        scoreDurationUsage: scoreDurationUsage,
+        error: workResult.error
+      };
       qaResults.push(resultEntry);
       await writeFile(join(loopDir, 'results.json'), JSON.stringify(qaResults, null, 2), 'utf-8');
       await new Promise(resolve => setTimeout(resolve, 1500));
