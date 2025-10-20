@@ -55,7 +55,9 @@ export function DataAnalysis() {
       if (data.success) {
         setDirectories(data.directories)
         if (data.directories.length > 0) {
-          setSelectedDirectory(data.directories[0])
+          // 按时间排序，最新的在前面
+          const sortedDirs = [...data.directories].sort().reverse()
+          setSelectedDirectory(sortedDirs[0])
         }
       }
     } catch (error) {
@@ -63,12 +65,19 @@ export function DataAnalysis() {
     }
   }
 
-  // 当选择目录变化时，加载循环次数
+  // 当选择目录变化时，加载循环次数并重置为第1轮
   useEffect(() => {
     if (selectedDirectory) {
       loadLoops()
     }
   }, [selectedDirectory])
+
+  // 当目录或循环变化时，自动分析数据
+  useEffect(() => {
+    if (selectedDirectory && selectedLoop) {
+      analyzeResults()
+    }
+  }, [selectedDirectory, selectedLoop])
 
   const loadLoops = async () => {
     try {
@@ -212,15 +221,15 @@ export function DataAnalysis() {
             <Button
               onClick={analyzeResults}
               disabled={isAnalyzing || !selectedDirectory || !selectedLoop}
-              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0 min-w-[100px]"
+              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0 min-w-[120px]"
             >
               {isAnalyzing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  分析中
+                  生成中
                 </>
               ) : (
-                "开始分析"
+                "生成测试报告"
               )}
             </Button>
           </div>
