@@ -117,6 +117,23 @@ async function analyzeDirectory(directory: string, returnFullResult = true): Pro
     const dirPath = join(process.cwd(), 'output', 'result', directory)
     const frameworkScores: Record<string, number[]> = {}
 
+    // 获取单轮循环的问题数量和问题总分（通过读取第一个结果文件）
+    let questionCount = 10 // 默认值，如果无法确定则使用默认值
+    let maxPossibleScore = 0 // 问题总分（所有问题的maxScore相加）
+    try {
+      const firstResultPath = join(dirPath, '1', 'results.json')
+      const firstResultsContent = await readFile(firstResultPath, 'utf-8')
+      const firstResults = JSON.parse(firstResultsContent)
+      questionCount = firstResults.length
+
+      // 计算问题总分（所有问题的maxScore相加）
+      maxPossibleScore = firstResults.reduce((sum: number, item: any) => {
+        return sum + (item.maxScore || 0)
+      }, 0)
+    } catch (error) {
+      console.warn('Could not determine question count and max possible score, using default values:', error)
+    }
+
     // 读取循环目录
     const loopDirs = await readdir(dirPath, { withFileTypes: true })
 
@@ -157,7 +174,7 @@ async function analyzeDirectory(directory: string, returnFullResult = true): Pro
       success: true,
       directory,
       frameworkScores,
-      frameworkStats: calculateFrameworkStats(frameworkScores)
+      frameworkStats: calculateFrameworkStats(frameworkScores, questionCount, maxPossibleScore)
     }
 
     return returnFullResult ? Response.json(result) : result
@@ -214,7 +231,7 @@ async function analyzeLoopResult(directory: string, loop: string) {
   }
 }
 
-function calculateFrameworkStats(frameworkScores: Record<string, number[]>) {
+function calculateFrameworkStats(frameworkScores: Record<string, number[]>, questionCount: number, maxPossibleScore: number) {
   const stats: Record<string, {
     totalScore: number
     averageScore: number
@@ -224,6 +241,7 @@ function calculateFrameworkStats(frameworkScores: Record<string, number[]>) {
     averageTotalScore: number // 每轮循环的平均总分
     loopCount: number // 循环次数
     allLoopTotalScores: number[] // 所有循环的总分列表
+    maxPossibleScore: number // 问题总分（所有问题的maxScore相加）
   }> = {}
 
   Object.entries(frameworkScores).forEach(([framework, scores]) => {
@@ -235,19 +253,17 @@ function calculateFrameworkStats(frameworkScores: Record<string, number[]>) {
       const maxScore = Math.max(...scores)
       const minScore = Math.min(...scores)
 
-      // 假设有10个问题，每轮循环10个问题的总分
-      // 我们需要根据数据长度推算出循环次数
-      // 如果有180个分数，说明跑了18次循环，每轮10个问题
-      const loopCount = scores.length / 10
+      // 根据问题数量计算循环次数
+      const loopCount = scores.length / questionCount
 
       // 计算每轮循环的平均总分
       let averageTotalScore = 0
       const allLoopTotalScores: number[] = []
       if (loopCount > 0) {
-        // 将分数按每10个一组进行分组（每轮循环）
+        // 将分数按每轮的问题数量进行分组
         for (let i = 0; i < loopCount; i++) {
-          const startIndex = i * 10
-          const loopScore = scores.slice(startIndex, startIndex + 10).reduce((sum, score) => sum + score, 0)
+          const startIndex = i * questionCount
+          const loopScore = scores.slice(startIndex, startIndex + questionCount).reduce((sum, score) => sum + score, 0)
           allLoopTotalScores.push(loopScore)
         }
         averageTotalScore = allLoopTotalScores.reduce((sum, score) => sum + score, 0) / allLoopTotalScores.length
@@ -256,12 +272,13 @@ function calculateFrameworkStats(frameworkScores: Record<string, number[]>) {
       stats[framework] = {
         totalScore: Number(averageTotalScore.toFixed(2)), // 使用平均总分而不是总分累加
         averageScore: Number(averageScore.toFixed(2)),
-        questionCount: 10, // 固定10个问题
+        questionCount: questionCount, // 动态计算的问题数量
         maxScore,
         minScore,
         averageTotalScore: Number(averageTotalScore.toFixed(2)),
         loopCount,
-        allLoopTotalScores
+        allLoopTotalScores,
+        maxPossibleScore: maxPossibleScore // 问题总分（所有问题的maxScore相加）
       }
     }
   })

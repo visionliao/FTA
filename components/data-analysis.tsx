@@ -25,6 +25,7 @@ interface LoopResult {
   results: QuestionResult[]
   averageScore: number
   totalScore: number
+  maxPossibleScore: number // 问题总分（所有问题的maxScore相加）
   totalTokenUsage: number
   averageDuration: number
 }
@@ -125,6 +126,7 @@ export function DataAnalysis() {
         // 处理结果数据
         const results: QuestionResult[] = data.results
         const totalScore = results.reduce((sum: number, r: QuestionResult) => sum + r.score, 0)
+        const maxPossibleScore = results.reduce((sum: number, r: QuestionResult) => sum + r.maxScore, 0)
         const averageScore = totalScore / results.length
         const totalTokenUsage = results.reduce((sum: number, r: QuestionResult) => sum + r.workTokenUsage + r.scoreTokenUsage, 0)
         const averageDuration = results.reduce((sum: number, r: QuestionResult) => sum + r.workDurationUsage + r.scoreDurationUsage, 0) / results.length
@@ -134,6 +136,7 @@ export function DataAnalysis() {
           results,
           averageScore,
           totalScore,
+          maxPossibleScore,
           totalTokenUsage,
           averageDuration
         })
@@ -242,10 +245,14 @@ export function DataAnalysis() {
             {/* 最后一行：总体统计 */}
             {loopResults && (
               <div className="border-b pb-4 mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm bg-muted/30 p-4 rounded-lg">
                   <div className="text-center">
-                    <p className="font-medium text-muted-foreground">总分</p>
-                    <p className="text-lg font-bold text-blue-600">{loopResults.totalScore}</p>
+                    <p className="font-medium text-muted-foreground">问题总分</p>
+                    <p className="text-lg font-bold text-blue-600">{loopResults.maxPossibleScore}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-medium text-muted-foreground">总得分</p>
+                    <p className="text-lg font-bold text-green-600">{loopResults.totalScore}</p>
                   </div>
                   <div className="text-center">
                     <p className="font-medium text-muted-foreground">平均得分</p>
