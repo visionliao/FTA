@@ -127,12 +127,17 @@ export function ProjectOverview() {
     fetchProjectFiles()
   }, [])
 
-  // 确保在组件加载时根据选中的项目类型正确设置编辑状态
+  // 确保在组件加载时和项目变化时正确设置编辑状态
   useEffect(() => {
-    if (selectedProject === "自定义") {
-      setIsEditMode(true)
+    // 只有当项目列表加载完成后再设置编辑状态
+    if (projectFiles && projectFiles.length > 0) {
+      if (selectedProject === "自定义") {
+        setIsEditMode(true)
+      } else {
+        setIsEditMode(false)
+      }
     }
-  }, [selectedProject, setIsEditMode])
+  }, [selectedProject, projectFiles, setIsEditMode])
 
   // 处理项目选择变化
   const handleProjectChange = async (projectName: string) => {
