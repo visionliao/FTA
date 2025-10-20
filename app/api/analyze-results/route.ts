@@ -43,9 +43,15 @@ export async function GET() {
 // 分析结果数据
 export async function POST(request: NextRequest) {
   try {
-    const { directory } = await request.json()
+    const { directory, getLoops, loop } = await request.json()
     
-    if (!directory || directory === '全部分析') {
+    if (getLoops && directory) {
+      // 获取指定目录下的循环次数
+      return await getLoopsForDirectory(directory)
+    } else if (directory && loop) {
+      // 分析指定目录和循环
+      return await analyzeLoopResult(directory, loop)
+    } else if (!directory || directory === '全部分析') {
       // 分析所有目录
       return await analyzeAllDirectories()
     } else {
@@ -162,6 +168,49 @@ async function analyzeDirectory(directory: string, returnFullResult = true): Pro
       error: 'Failed to analyze directory'
     }
     return returnFullResult ? Response.json(result, { status: 500 }) : result
+  }
+}
+
+async function getLoopsForDirectory(directory: string) {
+  try {
+    const dirPath = join(process.cwd(), 'output', 'result', directory)
+    const loopDirs = await readdir(dirPath, { withFileTypes: true })
+
+    // 过滤出目录并排序
+    const loops = loopDirs
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+
+    return Response.json({
+      success: true,
+      loops
+    })
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: 'Failed to get loops'
+    }, { status: 500 })
+  }
+}
+
+async function analyzeLoopResult(directory: string, loop: string) {
+  try {
+    const resultPath = join(process.cwd(), 'output', 'result', directory, loop, 'results.json')
+    const resultsContent = await readFile(resultPath, 'utf-8')
+    const results = JSON.parse(resultsContent)
+
+    return Response.json({
+      success: true,
+      directory,
+      loop,
+      results
+    })
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: 'Failed to analyze loop result'
+    }, { status: 500 })
   }
 }
 
