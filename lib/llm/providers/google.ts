@@ -139,7 +139,7 @@ export class GoogleChatProvider extends BaseChatProvider {
     console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log('Provider: Google');
     console.log('Model:', model);
-    console.log('系统提示词:', this.config.systemPrompt);
+    console.log('提示词上下文:', this.config.systemPrompt);
     console.log('参数配置信息:', JSON.stringify(generationConfig, null, 2));
     if (googleTools) {
       console.log('可用工具数量: ', googleTools.length);

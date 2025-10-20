@@ -163,7 +163,7 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
   onProgress({ type: 'log', message: `正在加载项目 '${config.project.projectName}' 的背景资料...` })
 
   // 创建基础项目上下文（不包含MCP工具）
-  let baseProjectContext = `# 项目: ${config.project.projectName}\n\n## 系统提示词\n${config.project.systemPrompt}\n\n`
+  let baseProjectContext = `# 系统提示词\n${config.project.systemPrompt}\n\n`
   const knowledgeDir = join(process.cwd(), "output", "project", config.project.projectName, "knowledge")
   try {
     const knowledgeFiles = await readdir(knowledgeDir)
@@ -192,13 +192,6 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
 
     // 为工作模型创建一个包含所有背景知识的系统提示词（不包含MCP工具JSON）
     const finalSystemPrompt = `
-      # 指令与规则
-      你必须严格遵守以下指令和规则来回答问题。
-
-      ---
-
-      # 背景资料与知识库
-      在回答问题时，你必须参考和利用以下信息。
       ${workContext}
     `;
     let qaResults: any[] = [];
