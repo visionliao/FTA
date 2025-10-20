@@ -65,7 +65,7 @@ async function getProjectData(projectName: string) {
     // 读取项目基本信息
     let projectData = {
       projectName: "",
-      projectBackground: "",
+      systemPrompt: "",
       knowledgeBaseFiles: [] as string[],
       mcpTools: [] as Array<{
         methodName: string
@@ -86,10 +86,10 @@ async function getProjectData(projectName: string) {
         projectData.projectName = titleMatch[1].trim()
       }
 
-      // 提取项目背景
-      const backgroundMatch = projectContent.match(/## 项目背景\s*\n([\s\S]*?)(?=\n## |$)/)
-      if (backgroundMatch) {
-        projectData.projectBackground = backgroundMatch[1].trim()
+      // 提取系统提示词
+      const systemPromptMatch = projectContent.match(/## 系统提示词\s*\n([\s\S]*?)(?=\n## |$)/)
+      if (systemPromptMatch) {
+        projectData.systemPrompt = systemPromptMatch[1].trim()
       }
 
       // 提取知识库文件

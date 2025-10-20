@@ -5,7 +5,7 @@ import { join } from "path"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { projectName, projectBackground, knowledgeBaseFiles, mcpTools, mcpToolsCode, force } = body
+    const { projectName, systemPrompt, knowledgeBaseFiles, mcpTools, mcpToolsCode, force } = body
 
     if (!projectName) {
       return NextResponse.json({ error: "项目名称不能为空" }, { status: 400 })
@@ -121,8 +121,8 @@ export async function POST(request: Request) {
     // 生成项目文件内容
     const projectContent = `# ${projectName}
 
-## 项目背景
-${projectBackground}
+## 系统提示词
+${systemPrompt}
 
 ## 知识库文件
 ${knowledgeBaseFiles.length > 0 ? knowledgeBaseFiles.map((file: string) => `- ${file}`).join('\n') : '无'}

@@ -50,7 +50,6 @@ interface RunStatus {
 interface CurrentRunState {
   loop?: number;
   totalLoops?: number;
-  systemPrompt?: string;
   questionId?: number;
   questionText?: string;
   modelAnswer?: string;
@@ -70,7 +69,7 @@ interface AppState {
     selectedProject: string
     projectFiles: string[]
     projectName: string
-    projectBackground: string
+    systemPrompt: string
     knowledgeBaseFiles: string[]
     knowledgeBaseFileData: any[]
     isDragging: boolean
@@ -120,7 +119,7 @@ interface AppState {
   setSelectedProject: (project: string) => void
   setProjectFiles: (files: string[]) => void
   setProjectName: (name: string) => void
-  setProjectBackground: (background: string) => void
+  setSystemPrompt: (prompt: string) => void
   setKnowledgeBaseFiles: (files: string[]) => void
   setKnowledgeBaseFileData: (fileData: any[]) => void
   setIsDragging: (dragging: boolean) => void
@@ -189,7 +188,7 @@ export const useAppStore = create<AppState>()(
         selectedProject: "自定义",
         projectFiles: [],
         projectName: "",
-        projectBackground: "",
+        systemPrompt: "",
         knowledgeBaseFiles: [],
         knowledgeBaseFileData: [],
         isDragging: false,
@@ -249,8 +248,8 @@ export const useAppStore = create<AppState>()(
       setProjectName: (name) => 
         get().updateProjectConfig({ projectName: name }),
 
-      setProjectBackground: (background) => 
-        get().updateProjectConfig({ projectBackground: background }),
+      setSystemPrompt: (prompt) =>
+        get().updateProjectConfig({ systemPrompt: prompt }),
 
       setKnowledgeBaseFiles: (files) => 
         get().updateProjectConfig({ knowledgeBaseFiles: files }),
@@ -389,7 +388,7 @@ export const useAppStore = create<AppState>()(
         projectConfig: {
           selectedProject: state.projectConfig.selectedProject,
           projectName: state.projectConfig.projectName,
-          projectBackground: state.projectConfig.projectBackground,
+          systemPrompt: state.projectConfig.systemPrompt,
           knowledgeBaseFiles: state.projectConfig.knowledgeBaseFiles,
           mcpTools: state.projectConfig.mcpTools,
           mcpToolsCode: state.projectConfig.mcpToolsCode,

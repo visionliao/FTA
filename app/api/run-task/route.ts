@@ -163,7 +163,7 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
   onProgress({ type: 'log', message: `正在加载项目 '${config.project.projectName}' 的背景资料...` })
 
   // 创建基础项目上下文（不包含MCP工具）
-  let baseProjectContext = `# 项目: ${config.project.projectName}\n\n## 项目背景\n${config.project.projectBackground}\n\n`
+  let baseProjectContext = `# 项目: ${config.project.projectName}\n\n## 系统提示词\n${config.project.systemPrompt}\n\n`
   const knowledgeDir = join(process.cwd(), "output", "project", config.project.projectName, "knowledge")
   try {
     const knowledgeFiles = await readdir(knowledgeDir)

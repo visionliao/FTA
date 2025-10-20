@@ -77,7 +77,7 @@ export function ProjectOverview() {
       selectedProject,
       projectFiles,
       projectName,
-      projectBackground,
+      systemPrompt,
       knowledgeBaseFiles,
       knowledgeBaseFileData,
       isDragging,
@@ -93,7 +93,7 @@ export function ProjectOverview() {
     setSelectedProject,
     setProjectFiles,
     setProjectName,
-    setProjectBackground,
+    setSystemPrompt,
     setKnowledgeBaseFiles,
     setKnowledgeBaseFileData,
     setIsDragging,
@@ -146,7 +146,7 @@ export function ProjectOverview() {
     if (projectName === "自定义") {
       // 清空表单，让用户自定义
       setProjectName("")
-      setProjectBackground("")
+      setSystemPrompt("")
       setKnowledgeBaseFiles([])
       setMcpTools([])
       setMcpToolsCode("")
@@ -163,7 +163,7 @@ export function ProjectOverview() {
 
         // 填充表单数据
         setProjectName(projectData.projectName || projectName)
-        setProjectBackground(projectData.projectBackground || "")
+        setSystemPrompt(projectData.systemPrompt || "")
         setKnowledgeBaseFiles(projectData.knowledgeBaseFiles || [])
         setKnowledgeBaseFileData([]) // 重置文件数据，因为重新加载项目时需要重新选择文件
 
@@ -206,8 +206,8 @@ export function ProjectOverview() {
       validationErrors.push("项目名称")
     }
 
-    if (!projectBackground.trim()) {
-      validationErrors.push("项目背景")
+    if (!systemPrompt.trim()) {
+      validationErrors.push("系统提示词")
     }
 
     if (validationErrors.length > 0) {
@@ -266,7 +266,7 @@ export function ProjectOverview() {
         },
         body: JSON.stringify({
           projectName: projectName.trim(),
-          projectBackground: projectBackground.trim(),
+          systemPrompt: systemPrompt.trim(),
           knowledgeBaseFiles: knowledgeBaseFiles,
           fileData: knowledgeBaseFileData,
           mcpTools: mcpTools,
@@ -341,7 +341,7 @@ export function ProjectOverview() {
         },
         body: JSON.stringify({
           projectName: projectName.trim(),
-          projectBackground: projectBackground.trim(),
+          systemPrompt: systemPrompt.trim(),
           knowledgeBaseFiles: knowledgeBaseFiles,
           fileData: knowledgeBaseFileData,
           mcpTools: mcpTools,
@@ -759,11 +759,11 @@ export function ProjectOverview() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">项目背景</Label>
+          <Label className="text-sm font-medium text-foreground">系统提示词</Label>
           <AutoResizeTextarea
-            value={projectBackground}
-            onChange={(e) => setProjectBackground(e.target.value)}
-            placeholder="请输入项目的描述信息、功能简介等，让大模型能够更好的理解你的项目..."
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            placeholder="请输入真实项目的系统提示词，模拟真实项目背景，以获得最真实的生成环境测试结果..."
             disabled={!isEditMode || isLoading}
           />
         </div>
