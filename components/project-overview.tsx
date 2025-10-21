@@ -718,7 +718,7 @@ export function ProjectOverview() {
   return (
     <div className="p-4 md:p-8 max-w-full md:max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
       <div className="mb-6 border-b border-border pb-4 md:mb-8">
-        <h1 className="text-xl font-semibold text-foreground md:text-2xl">项目概况</h1>
+        <h1 className="text-xl font-semibold text-foreground md:text-2xl">项目配置</h1>
       </div>
 
       <div className="space-y-6 md:space-y-8">

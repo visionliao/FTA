@@ -15,7 +15,7 @@ interface SidebarProps {
 const menuItems = [
   {
     id: "project-overview",
-    label: "项目概况",
+    label: "项目配置",
     icon: FileText,
   },
   {
