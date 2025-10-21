@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
-import { BarChart3, Loader2 } from "lucide-react"
+import { BarChart3, Camera } from "lucide-react"
+import { useScreenshot } from "@/hooks/useScreenshot"
 
 interface QuestionResult {
   id: number
@@ -35,7 +36,6 @@ export function DataAnalysis() {
   const [selectedDirectory, setSelectedDirectory] = useState<string>("")
   const [loops, setLoops] = useState<string[]>([])
   const [selectedLoop, setSelectedLoop] = useState<string>("1")
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false)
   const [loopResults, setLoopResults] = useState<LoopResult | null>(null)
   const [summaryStats, setSummaryStats] = useState<{
     averageScore: number
@@ -43,6 +43,10 @@ export function DataAnalysis() {
     averageDuration: number
     totalQuestions: number
   } | null>(null)
+
+  // 截图相关状态
+  const reportRef = useRef<HTMLDivElement>(null)
+  const { captureScreenshot, isCapturing: isCapturingScreenshot, error: screenshotError } = useScreenshot()
 
   // 加载结果目录
   useEffect(() => {
@@ -106,9 +110,8 @@ export function DataAnalysis() {
   }
 
   const analyzeResults = async () => {
-    if (isAnalyzing || !selectedDirectory || !selectedLoop) return
+    if (!selectedDirectory || !selectedLoop) return
 
-    setIsAnalyzing(true)
     try {
       const response = await fetch("/api/analyze-results", {
         method: "POST",
@@ -150,8 +153,30 @@ export function DataAnalysis() {
       }
     } catch (error) {
       console.error("Failed to analyze results:", error)
-    } finally {
-      setIsAnalyzing(false)
+    }
+  }
+
+  // 截图处理函数
+  const handleScreenshot = async () => {
+    if (!reportRef.current || !selectedDirectory || !selectedLoop) {
+      console.error("Missing required data for screenshot")
+      return
+    }
+
+    try {
+      // 生成文件名格式: 测试的日期时间_测试轮次.png
+      const cleanDirectory = selectedDirectory.replace(/[:.]/g, '-')
+      const filename = `${cleanDirectory}_${selectedLoop}.png`
+
+      await captureScreenshot(reportRef.current, {
+        filename,
+        quality: 0.95,
+        scale: 2,
+        backgroundColor: '#ffffff'
+      })
+    } catch (error) {
+      console.error("Failed to capture screenshot:", error)
+      alert("截图保存失败，请重试")
     }
   }
 
@@ -176,7 +201,7 @@ export function DataAnalysis() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-full md:max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
+    <div ref={reportRef} className="p-4 md:p-8 max-w-full md:max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
       <div className="mb-6 border-b border-border pb-4 md:mb-8">
         <h1 className="text-xl font-semibold text-foreground md:text-2xl">测试报告</h1>
       </div>
@@ -188,7 +213,7 @@ export function DataAnalysis() {
             <div className="flex flex-col md:flex-row md:items-center gap-2 flex-1">
               <div>
                 <Label className="text-sm font-medium text-foreground">选择测试结果</Label>
-                <Select value={selectedDirectory} onValueChange={setSelectedDirectory} disabled={isAnalyzing}>
+                <Select value={selectedDirectory} onValueChange={setSelectedDirectory}>
                   <SelectTrigger className="w-full md:w-64 disabled:opacity-50">
                     <SelectValue placeholder="选择测试结果" />
                   </SelectTrigger>
@@ -205,7 +230,7 @@ export function DataAnalysis() {
               {loops.length > 0 && (
                 <div>
                   <Label className="text-sm font-medium text-foreground">测试轮次</Label>
-                  <Select value={selectedLoop} onValueChange={setSelectedLoop} disabled={isAnalyzing}>
+                  <Select value={selectedLoop} onValueChange={setSelectedLoop}>
                     <SelectTrigger className="w-full md:w-40 disabled:opacity-50">
                       <SelectValue />
                     </SelectTrigger>
@@ -221,20 +246,18 @@ export function DataAnalysis() {
               )}
             </div>
             
-            <Button
-              onClick={analyzeResults}
-              disabled={isAnalyzing || !selectedDirectory || !selectedLoop}
-              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0 min-w-[120px]"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  生成中
-                </>
-              ) : (
-                "生成测试报告"
-              )}
-            </Button>
+            {/* 截图按钮 */}
+            {loopResults && (
+              <Button
+                onClick={handleScreenshot}
+                disabled={isCapturingScreenshot}
+                variant="outline"
+                className="flex items-center gap-2 flex-shrink-0 min-w-[120px]"
+              >
+                <Camera className="h-4 w-4" />
+                {isCapturingScreenshot ? "截图中..." : "截图保存"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -325,25 +348,13 @@ export function DataAnalysis() {
         </>
         )}
 
-        {/* 加载状态 */}
-        {isAnalyzing && (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-lg">正在分析结果数据...</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* 空状态 */}
-        {!summaryStats && !isAnalyzing && (
+        {!summaryStats && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg text-muted-foreground mb-2">暂无分析数据</p>
-              <p className="text-sm text-muted-foreground">请选择测试结果和轮次并点击"开始分析"按钮</p>
+              <p className="text-sm text-muted-foreground">请选择测试结果和轮次</p>
             </CardContent>
           </Card>
         )}
