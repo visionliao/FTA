@@ -297,7 +297,16 @@ export function DataAnalysis() {
               </div>
             )}
 
-            {loopResults?.results.map((result) => (
+            {[...loopResults?.results || []]
+                .sort((a, b) => {
+                  // 红色背景（<6分）最前，黄色背景（6-7.9分）中间，绿色背景（≥8分）最后
+                  if (a.score < 6 && b.score >= 6) return -1
+                  if (a.score >= 6 && b.score < 6) return 1
+                  if (a.score >= 6 && a.score < 8 && b.score >= 8) return -1
+                  if (a.score >= 8 && b.score < 8) return 1
+                  return 0
+                })
+                .map((result) => (
               <div key={result.id} className={`border rounded-lg p-4 ${getScoreColor(result.score)}`}>
                 {/* 第一行：问题编号和得分 */}
                 <div className="flex items-center justify-between mb-2">
