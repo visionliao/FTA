@@ -213,6 +213,10 @@ async function getLoopsForDirectory(directory: string) {
 
 async function analyzeLoopResult(directory: string, loop: string) {
   try {
+    if (loop === 'all') {
+      return await analyzeAllLoopsResult(directory)
+    }
+
     const resultPath = join(process.cwd(), 'output', 'result', directory, loop, 'results.json')
     const resultsContent = await readFile(resultPath, 'utf-8')
     const results = JSON.parse(resultsContent)
@@ -227,6 +231,57 @@ async function analyzeLoopResult(directory: string, loop: string) {
     return Response.json({
       success: false,
       error: 'Failed to analyze loop result'
+    }, { status: 500 })
+  }
+}
+
+async function analyzeAllLoopsResult(directory: string) {
+  try {
+    const dirPath = join(process.cwd(), 'output', 'result', directory)
+    const loopDirs = await readdir(dirPath, { withFileTypes: true })
+
+    // 过滤出目录并排序
+    const loops = loopDirs
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+
+    const allResults: any[] = []
+
+    // 读取所有轮次的结果
+    for (const loop of loops) {
+      const resultPath = join(dirPath, loop, 'results.json')
+      try {
+        const resultsContent = await readFile(resultPath, 'utf-8')
+        const results = JSON.parse(resultsContent)
+
+        // 为每个结果添加轮次信息
+        results.forEach((result: any) => {
+          allResults.push({
+            ...result,
+            loop
+          })
+        })
+      } catch (error) {
+        console.warn(`Failed to read results for loop ${loop}:`, error)
+      }
+    }
+
+    if (allResults.length === 0) {
+      throw new Error('No results found')
+    }
+
+    return Response.json({
+      success: true,
+      directory,
+      loop: 'all',
+      results: allResults,
+      isAllLoops: true
+    })
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: 'Failed to analyze all loops result'
     }, { status: 500 })
   }
 }

@@ -19,6 +19,15 @@ interface QuestionResult {
   workDurationUsage: number
   scoreTokenUsage: number
   scoreDurationUsage: number
+  loop?: string // 新增字段，用于标识来自哪个轮次
+  // 全部选项时使用的字段（所有轮次的总和）
+  totalWorkTokenUsage?: number
+  totalWorkDurationUsage?: number
+  totalScoreTokenUsage?: number
+  totalScoreDurationUsage?: number
+  // 全部选项时使用的字段（得分计算）
+  totalActualScore?: number // 所有轮次该问题的实际得分之和
+  totalMaxScore?: number // 所有轮次该问题的分数之和
 }
 
 interface LoopResult {
@@ -101,7 +110,7 @@ export function DataAnalysis() {
       if (data.success && data.loops) {
         setLoops(data.loops.sort((a: string, b: string) => parseInt(a) - parseInt(b)))
         if (data.loops.length > 0) {
-          setSelectedLoop(data.loops[0])
+          setSelectedLoop("all") // 默认选中全部
         }
       }
     } catch (error) {
@@ -126,17 +135,78 @@ export function DataAnalysis() {
 
       const data = await response.json()
       if (data.success && data.results) {
-        // 处理结果数据
-        const results: QuestionResult[] = data.results
-        const totalScore = results.reduce((sum: number, r: QuestionResult) => sum + r.score, 0)
-        const maxPossibleScore = results.reduce((sum: number, r: QuestionResult) => sum + r.maxScore, 0)
-        const averageScore = totalScore / results.length
-        const totalTokenUsage = results.reduce((sum: number, r: QuestionResult) => sum + r.workTokenUsage + r.scoreTokenUsage, 0)
-        const averageDuration = results.reduce((sum: number, r: QuestionResult) => sum + r.workDurationUsage + r.scoreDurationUsage, 0) / results.length
+        let processedResults: QuestionResult[]
+        let totalScore: number
+        let maxPossibleScore: number
+        let averageScore: number
+        let totalTokenUsage: number
+        let averageDuration: number
+
+        if (data.isAllLoops) {
+          // 处理全部轮次的数据
+          const resultsByQuestion = new Map<number, QuestionResult[]>()
+
+          // 按问题ID分组
+          data.results.forEach((result: QuestionResult) => {
+            if (!resultsByQuestion.has(result.id)) {
+              resultsByQuestion.set(result.id, [])
+            }
+            resultsByQuestion.get(result.id)?.push(result)
+          })
+
+          // 处理每个问题：选择得分最低的回答，计算平均分和性能指标总和
+          processedResults = []
+          for (const [questionId, questionResults] of resultsByQuestion) {
+            // 找到得分最低的结果
+            const minScoreResult = questionResults.reduce((min, current) =>
+              current.score < min.score ? current : min
+            )
+
+            // 计算平均分
+            const averageScoreForQuestion = questionResults.reduce((sum, r) => sum + r.score, 0) / questionResults.length
+
+            // 计算性能指标的总和（所有轮次）
+            const totalWorkTokenUsage = questionResults.reduce((sum, r) => sum + r.workTokenUsage, 0)
+            const totalWorkDurationUsage = questionResults.reduce((sum, r) => sum + r.workDurationUsage, 0)
+            const totalScoreTokenUsage = questionResults.reduce((sum, r) => sum + r.scoreTokenUsage, 0)
+            const totalScoreDurationUsage = questionResults.reduce((sum, r) => sum + r.scoreDurationUsage, 0)
+
+            // 计算得分情况（所有轮次）
+            const totalActualScore = questionResults.reduce((sum, r) => sum + r.score, 0)
+            const totalMaxScore = questionResults.reduce((sum, r) => sum + r.maxScore, 0)
+
+            // 创建处理后的结果
+            processedResults.push({
+              ...minScoreResult,
+              score: averageScoreForQuestion, // 使用平均分（用于排序和颜色显示）
+              totalWorkTokenUsage, // 所有轮次的问答消耗token总和
+              totalWorkDurationUsage, // 所有轮次的问答耗时总和
+              totalScoreTokenUsage, // 所有轮次的评分消耗token总和
+              totalScoreDurationUsage, // 所有轮次的评分耗时总和
+              totalActualScore, // 所有轮次该问题的实际得分之和
+              totalMaxScore // 所有轮次该问题的分数之和
+            })
+          }
+
+          // 计算总体统计数据
+          totalScore = data.results.reduce((sum: number, r: QuestionResult) => sum + r.score, 0)
+          maxPossibleScore = data.results.reduce((sum: number, r: QuestionResult) => sum + r.maxScore, 0)
+          averageScore = totalScore / data.results.length
+          totalTokenUsage = data.results.reduce((sum: number, r: QuestionResult) => sum + r.workTokenUsage + r.scoreTokenUsage, 0)
+          averageDuration = data.results.reduce((sum: number, r: QuestionResult) => sum + r.workDurationUsage + r.scoreDurationUsage, 0) / data.results.length
+        } else {
+          // 处理单个轮次的数据（保持原有逻辑）
+          processedResults = data.results
+          totalScore = processedResults.reduce((sum: number, r: QuestionResult) => sum + r.score, 0)
+          maxPossibleScore = processedResults.reduce((sum: number, r: QuestionResult) => sum + r.maxScore, 0)
+          averageScore = totalScore / processedResults.length
+          totalTokenUsage = processedResults.reduce((sum: number, r: QuestionResult) => sum + r.workTokenUsage + r.scoreTokenUsage, 0)
+          averageDuration = processedResults.reduce((sum: number, r: QuestionResult) => sum + r.workDurationUsage + r.scoreDurationUsage, 0) / processedResults.length
+        }
 
         setLoopResults({
           loopId: selectedLoop,
-          results,
+          results: processedResults,
           averageScore,
           totalScore,
           maxPossibleScore,
@@ -148,7 +218,7 @@ export function DataAnalysis() {
           averageScore,
           totalTokenUsage,
           averageDuration,
-          totalQuestions: results.length
+          totalQuestions: processedResults.length
         })
       }
     } catch (error) {
@@ -166,7 +236,7 @@ export function DataAnalysis() {
     try {
       // 生成文件名格式: 测试的日期时间_测试轮次.png
       const cleanDirectory = selectedDirectory.replace(/[:.]/g, '-')
-      const filename = `${cleanDirectory}_${selectedLoop}.png`
+      const filename = `${cleanDirectory}_${selectedLoop === 'all' ? 'all' : selectedLoop}.png`
 
       await captureScreenshot(reportRef.current, {
         filename,
@@ -237,6 +307,9 @@ export function DataAnalysis() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem key="all" value="all">
+                        全部
+                      </SelectItem>
                       {loops.map((loop) => (
                         <SelectItem key={loop} value={loop}>
                           第 {loop} 轮
@@ -312,7 +385,14 @@ export function DataAnalysis() {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">问题 #{result.id}</h3>
                   <span className={`px-2 py-1 rounded text-sm font-medium ${getScoreTextColor(result.score)}`}>
-                    得分: {result.score}/{result.maxScore}
+                    得分: {
+                      selectedLoop === 'all'
+                        ? `${result.totalActualScore}/${result.totalMaxScore}`
+                        : `${result.score}/${result.maxScore}`
+                    }
+                    {selectedLoop === 'all' && (
+                      <span className="text-xs text-gray-500 ml-1">(累计)</span>
+                    )}
                   </span>
                 </div>
 
@@ -338,19 +418,55 @@ export function DataAnalysis() {
                 <div className="flex flex-wrap gap-3 text-sm">
                   <div className="bg-blue-50 px-3 py-1 rounded">
                     <span className="text-xs text-blue-600 font-medium">问答消耗token：</span>
-                    <span className="text-sm ml-1">{formatToken(result.workTokenUsage)}</span>
+                    <span className="text-sm ml-1">
+                      {formatToken(
+                        selectedLoop === 'all'
+                          ? result.totalWorkTokenUsage || 0
+                          : result.workTokenUsage
+                      )}
+                      {selectedLoop === 'all' && (
+                        <span className="text-xs text-gray-500 ml-1">(累计)</span>
+                      )}
+                    </span>
                   </div>
                   <div className="bg-purple-50 px-3 py-1 rounded">
                     <span className="text-xs text-purple-600 font-medium">问答耗时：</span>
-                    <span className="text-sm ml-1">{formatDuration(result.workDurationUsage)}</span>
+                    <span className="text-sm ml-1">
+                      {formatDuration(
+                        selectedLoop === 'all'
+                          ? result.totalWorkDurationUsage || 0
+                          : result.workDurationUsage
+                      )}
+                      {selectedLoop === 'all' && (
+                        <span className="text-xs text-gray-500 ml-1">(累计)</span>
+                      )}
+                    </span>
                   </div>
                   <div className="bg-green-50 px-3 py-1 rounded">
                     <span className="text-xs text-green-600 font-medium">评分消耗token：</span>
-                    <span className="text-sm ml-1">{formatToken(result.scoreTokenUsage)}</span>
+                    <span className="text-sm ml-1">
+                      {formatToken(
+                        selectedLoop === 'all'
+                          ? result.totalScoreTokenUsage || 0
+                          : result.scoreTokenUsage
+                      )}
+                      {selectedLoop === 'all' && (
+                        <span className="text-xs text-gray-500 ml-1">(累计)</span>
+                      )}
+                    </span>
                   </div>
                   <div className="bg-orange-50 px-3 py-1 rounded">
                     <span className="text-xs text-orange-600 font-medium">评分耗时：</span>
-                    <span className="text-sm ml-1">{formatDuration(result.scoreDurationUsage)}</span>
+                    <span className="text-sm ml-1">
+                      {formatDuration(
+                        selectedLoop === 'all'
+                          ? result.totalScoreDurationUsage || 0
+                          : result.scoreDurationUsage
+                      )}
+                      {selectedLoop === 'all' && (
+                        <span className="text-xs text-gray-500 ml-1">(累计)</span>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
