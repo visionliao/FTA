@@ -6,6 +6,8 @@ interface UseScreenshotOptions {
   quality?: number
   scale?: number
   backgroundColor?: string
+  saveToServer?: boolean
+  serverDirectory?: string
 }
 
 interface UseScreenshotReturn {
@@ -30,7 +32,9 @@ export function useScreenshot(): UseScreenshotReturn {
         filename,
         quality = 0.95,
         scale = 2,
-        backgroundColor = '#ffffff'
+        backgroundColor = '#ffffff',
+        saveToServer = false,
+        serverDirectory = 'output/reports'
       } = options
 
       // Generate filename if not provided
@@ -52,21 +56,42 @@ export function useScreenshot(): UseScreenshotReturn {
       // Capture the screenshot
       const dataUrl = await domToPng(element, screenshotOptions)
 
-      // Convert data URL to blob
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
+      if (saveToServer) {
+        // Save to server
+        const response = await fetch('/api/save-screenshot', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            imageData: dataUrl,
+            filename: finalFilename,
+            directory: serverDirectory
+          })
+        })
 
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = finalFilename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+        const result = await response.json()
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save screenshot to server')
+        }
+        alert(`截图已保存到：${result.path}`)
+      } else {
+        // Convert data URL to blob
+        const response = await fetch(dataUrl)
+        const blob = await response.blob()
 
-      // Clean up
-      window.URL.revokeObjectURL(url)
+        // Create download link
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = finalFilename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        // Clean up
+        window.URL.revokeObjectURL(url)
+      }
 
       return dataUrl
     } catch (err) {

@@ -172,7 +172,9 @@ export function DataAnalysis() {
         filename,
         quality: 0.95,
         scale: 2,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        saveToServer: true,
+        serverDirectory: 'output/reports'
       })
     } catch (error) {
       console.error("Failed to capture screenshot:", error)
