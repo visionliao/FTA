@@ -14,6 +14,7 @@ import {
 import { BaseChatProvider } from "../base-provider";
 import { ChatMessage, ToolCall, LlmProviderResponse, TokenUsage, DurationUsage, StreamingResult } from "../types";
 import { McpToolSchema } from "../tools/tool-client";
+import { appendToLogFile } from '@/lib/server-utils';
 
 export class GoogleChatProvider extends BaseChatProvider {
   /**
@@ -139,7 +140,7 @@ export class GoogleChatProvider extends BaseChatProvider {
     console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log('Provider: Google');
     console.log('Model:', model);
-    console.log('提示词上下文:', this.config.systemPrompt);
+    console.log('提示词上下文长度:', this.config.systemPrompt?.length);
     console.log('参数配置信息:', JSON.stringify(generationConfig, null, 2));
     if (googleTools) {
       console.log('可用工具数量: ', googleTools.length);
@@ -168,6 +169,10 @@ export class GoogleChatProvider extends BaseChatProvider {
         timeout: this.config.timeoutMs,
       };
 
+      if (this.config.logPath) {
+        const sendMessages = JSON.stringify(formattedMessages, null, 2);
+        await appendToLogFile(this.config.logPath, `--- 发送给大模型的消息 ---\n${sendMessages}\n\n`);
+      }
       // 记录请求开始时间
       const requestStartTime = Date.now();
 
@@ -333,6 +338,10 @@ export class GoogleChatProvider extends BaseChatProvider {
         timeout: this.config.timeoutMs,
       };
 
+      if (this.config.logPath) {
+        const sendMessages = JSON.stringify(formattedMessages, null, 2);
+        await appendToLogFile(this.config.logPath, `--- 发送给大模型的消息 ---\n${sendMessages}\n\n`);
+      }
       // 记录请求开始时间
       const requestStartTime = Date.now();
 
@@ -347,6 +356,10 @@ export class GoogleChatProvider extends BaseChatProvider {
 
       const response = result.response;
       console.log('google大模型响应非流式输出:', JSON.stringify(response, null, 2));
+      if (this.config.logPath) {
+        const toolCallLog = JSON.stringify(response, null, 2);
+        await appendToLogFile(this.config.logPath, `--- google模型回答 ---\n${toolCallLog}\n\n`);
+      }
 
       // 从响应中提取token消耗信息
       const usage: TokenUsage | undefined = response.usageMetadata && {
@@ -394,6 +407,9 @@ export class GoogleChatProvider extends BaseChatProvider {
         duration: duration,
       };
     } catch (error: any) {
+      if (this.config.logPath) {
+        await appendToLogFile(this.config.logPath, `--- Google Gemini API Error ---\n${error.message}\n\n`);
+      }
       this._handleGoogleApiError(error, model)
     }
   }

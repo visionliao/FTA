@@ -108,6 +108,7 @@ export interface LlmGenerationOptions {
   mcpServerUrl?: string; // mcp服务器地址
   systemPrompt?: string; // 系统提示词
   maxToolCalls?: number; // 最大工具调用次数
+  logPath?: string; // 运行日志存储目录
 }
 
 /**

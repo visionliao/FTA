@@ -3,6 +3,7 @@ import { readFile, mkdir, writeFile, readdir } from 'fs/promises'
 import { join } from 'path'
 import { handleChat } from '@/lib/llm/model-service';
 import { ChatMessage, LlmGenerationOptions, NonStreamingResult } from '@/lib/llm/types';
+import { appendToLogFile, ensureLogFileExists } from '@/lib/server-utils';
 
 // 安全调用大模型包装器，可以重试
 interface SafeCallResult {
@@ -197,6 +198,10 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
     const loopDir = join(baseResultDir, loop.toString())
     await mkdir(loopDir, { recursive: true })
 
+    // 创建日志输出文件
+    const logPath = join(loopDir, 'log.txt');
+    await ensureLogFileExists(logPath);
+
     // 为工作模型创建一个包含所有背景知识的系统提示词（不包含MCP工具JSON）
     const finalSystemPrompt = `
       ${workContext}
@@ -228,7 +233,8 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
         frequencyPenalty: workModelConfig.frequencyPenalty?.[0] || 0.0, // 词汇丰富度,默认0，范围-2.0-2.0,值越大，用词越丰富多样；值越低，用词更朴实简单
         mcpServerUrl: mcpServerUrl, // 从项目配置获取mcp服务器地址
         systemPrompt: finalSystemPrompt, // 系统提示词
-        maxToolCalls: 10 // 最大工具调用次数
+        maxToolCalls: 10, // 最大工具调用次数
+        logPath: logPath,  // 传递日志输出路径
       };
       const workMessages: ChatMessage[] = [
         {
@@ -242,6 +248,9 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
       if (isCancelled()) {
         throw new Error('任务已被用户取消');
       }
+
+      // 将当前问题追加到logPath日志文件中
+      await appendToLogFile(logPath, `\n=== 问题 #${testCase.id} ===\n${testCase.question}\n\n`);
 
       const workResult = await safeModelCall(config.models.work, workMessages, workOptions);
 
@@ -260,6 +269,9 @@ async function runTask(config: any, baseResultDir: string, onProgress: (data: ob
       } else {
         onProgress({ type: 'log', message: `警告: 回答问题 #${testCase.id} 失败，已跳过评分。` });
       }
+
+      // 将最终运行结果追加到logPath日志文件中
+      await appendToLogFile(logPath, `--- 最终答复 ---\n${modelAnswer}\n\n`);
 
       onProgress({ type: 'state_update', payload: { questionId: testCase.id, questionText: testCase.question, modelAnswer, score: undefined, maxScore: undefined } });
 
