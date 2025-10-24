@@ -13,6 +13,7 @@ import {
   DurationUsage
 } from '../types';
 import { McpToolSchema } from '../tools/tool-client';
+import { appendToLogFile } from '@/lib/server-utils';
 
 // Ollama API 使用不同的参数名，我们需要一个映射
 // 例如：maxOutputTokens -> num_predict
@@ -312,6 +313,10 @@ export class OllamaChatProvider extends BaseChatProvider {
       // 消息格式转换
       const formattedMessages = this.formatMessagesForOllama(messagesForApi);
       console.log('ollama发送给大模型的消息:', JSON.stringify(formattedMessages, null, 2));
+      if (this.config.logPath) {
+        const sendMessages = JSON.stringify(formattedMessages, null, 2);
+        await appendToLogFile(this.config.logPath, `--- 发送给大模型的消息 ---\n${sendMessages}\n\n`);
+      }
       // 非流式调用，可以通过 AbortSignal 和超时来控制
       // Ollama 库的 fetch 调用会继承设置的全局 dispatcher
       const response = await this.ollama.chat({
@@ -325,6 +330,10 @@ export class OllamaChatProvider extends BaseChatProvider {
 
       const responseMessage = response.message;
       console.log('ollama大模型响应非流式输出:', JSON.stringify(responseMessage, null, 2));
+      if (this.config.logPath) {
+        const toolCallLog = JSON.stringify(response, null, 2);
+        await appendToLogFile(this.config.logPath, `--- ollama模型回答 ---\n${toolCallLog}\n\n`);
+      }
 
       // 提取 Token 用量
       const usage: TokenUsage = {
@@ -354,6 +363,9 @@ export class OllamaChatProvider extends BaseChatProvider {
         duration: duration,
       };
     } catch (error: any) {
+      if (this.config.logPath) {
+        await appendToLogFile(this.config.logPath, `--- Ollama API Error ---\n${error.message}\n\n`);
+      }
       if (error.name === 'AbortError') {
         throw new Error(`Request to Ollama timed out.`);
       }

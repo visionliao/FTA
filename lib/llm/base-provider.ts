@@ -11,6 +11,7 @@ import {
 } from './types';
 import { getToolClientInstance } from './tools/tool-client-manager';
 import { McpToolSchema } from './tools/tool-client';
+import { appendToLogFile } from '@/lib/server-utils';
 
 /**
  * 所有聊天提供商（Provider）必须继承的抽象基类。
@@ -236,6 +237,9 @@ export abstract class BaseChatProvider {
     }
 
     // 9. 循环结束（达到最大调用次数），抛出错误
+    if (this.config.logPath) {
+      await appendToLogFile(this.config.logPath, `--- 已达到单次对话工具最大调用次数限制。 ---\n\n`);
+    }
     throw new Error("已达到单次对话工具最大调用次数限制。");
   }
 

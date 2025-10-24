@@ -706,7 +706,9 @@ export function ProjectOverview() {
       }))
 
       // 追加到现有工具列表
-      setMcpTools([...(mcpTools || []), ...newTools])
+      // setMcpTools([...(mcpTools || []), ...newTools])
+      // 清空现有工具列表并设置新工具
+      setMcpTools(newTools)
       
     } catch (error) {
       setParseError(`获取失败: ${error instanceof Error ? error.message : '未知错误'}`)
