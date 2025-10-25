@@ -27,7 +27,8 @@ def main():
     malformed_call_dirs = [] # 类型1
     model_call_failure_dirs = [] # 类型2
     refusal_to_reason_dirs = [] # 类型3a
-    plan_as_answer_dirs = [] # 类型3b
+    no_step_summary_dirs = [] # 新增: 类型3b
+    plan_as_final_answer_dirs = [] # 原3b变为3c
     # 类型4的子分类
     empty_reply_after_tool_call_dirs = [] # 类型4a
     reasoned_impossible_dirs = [] # 类型4b
@@ -73,10 +74,13 @@ def main():
                 elif 'N/A (调用失败)' in content:
                     model_call_failure_dirs.append(subdir.name)
                 elif 'functionCall' not in content:
+                    # 进入“类型3”的子分类判断
                     if '抱歉' in content and '无法' in content:
-                        refusal_to_reason_dirs.append(subdir.name)
+                        refusal_to_reason_dirs.append(subdir.name) # 3a
+                    elif not final_reply_content:
+                        no_step_summary_dirs.append(subdir.name) # 新增 3b
                     else:
-                        plan_as_answer_dirs.append(subdir.name)
+                        plan_as_final_answer_dirs.append(subdir.name) # 原3b变为3c
                 else:
                     # 进入“类型4”的子分类判断
                     if not final_reply_content:
@@ -91,7 +95,6 @@ def main():
             missing_function_call_info_dirs.append(subdir.name)
 
     # --- 打印最终的统计报告 ---
-
     if total_processed_dirs == 0:
         print(f"在目录 '{base_path}' 中未找到任何包含 log.txt 的子目录进行分析。")
         return
@@ -103,7 +106,8 @@ def main():
         'malformed': len(malformed_call_dirs),
         'model_failure': len(model_call_failure_dirs),
         'refusal': len(refusal_to_reason_dirs),
-        'plan_as_answer': len(plan_as_answer_dirs),
+        'no_step_summary': len(no_step_summary_dirs),
+        'plan_as_final_answer': len(plan_as_final_answer_dirs),
         'empty_reply': len(empty_reply_after_tool_call_dirs),
         'reasoned_impossible': len(reasoned_impossible_dirs),
         'missing_info': len(missing_function_call_info_dirs),
@@ -111,7 +115,7 @@ def main():
 
     # 计算总计
     total_correct_count = counts['truly_correct'] + counts['mcp_error']
-    total_type3_error_count = counts['refusal'] + counts['plan_as_answer']
+    total_type3_error_count = counts['refusal'] + counts['no_step_summary'] + counts['plan_as_final_answer']
     total_type4_error_count = counts['empty_reply'] + counts['reasoned_impossible'] + counts['missing_info']
     total_error_count = (counts['malformed'] + counts['model_failure'] + 
                          total_type3_error_count + total_type4_error_count)
@@ -147,8 +151,10 @@ def main():
     print(f"    - 🟠 [类型3] 直接回复最终答案 (总计: {total_type3_error_count}个)")
     print(f"      - 🙅 [3a] 大模型拒绝推理 ({counts['refusal']}个, 占比: {rates['refusal']:.2f}%)")
     print(f"        {' '.join(sorted(refusal_to_reason_dirs, key=int))}")
-    print(f"      - 📝 [3b] 将工具调用规划步骤作为最终答案 ({counts['plan_as_answer']}个, 占比: {rates['plan_as_answer']:.2f}%)")
-    print(f"        {' '.join(sorted(plan_as_answer_dirs, key=int))}")
+    print(f"      - 📄 [3b] 大模型没有总结出调用步骤 ({counts['no_step_summary']}个, 占比: {rates['no_step_summary']:.2f}%)")
+    print(f"        {' '.join(sorted(no_step_summary_dirs, key=int))}")
+    print(f"      - 📝 [3c] 将工具调用规划步骤作为最终答案 ({counts['plan_as_final_answer']}个, 占比: {rates['plan_as_final_answer']:.2f}%)")
+    print(f"        {' '.join(sorted(plan_as_final_answer_dirs, key=int))}")
 
     print(f"    - ⚪️ [类型4] 大模型意外终止 (总计: {total_type4_error_count}个)")
     print(f"      - 🕳️ [4a] 调用工具后返回空值 ({counts['empty_reply']}个, 占比: {rates['empty_reply']:.2f}%)")
